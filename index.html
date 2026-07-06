@@ -192,6 +192,10 @@
 <div class="overlay" id="workOverlay">
   <div class="modal">
     <h3>💼 Nieuwe werkdienst</h3>
+    <div class="field">
+      <label>Taak / functie (optioneel)</label>
+      <input type="text" id="workTask" placeholder="bijv. Kassa, vakkenvullen, bezorgen">
+    </div>
     <div class="row2">
       <div class="field">
         <label>Begintijd</label>
@@ -202,9 +206,18 @@
         <input type="time" id="workEnd" value="17:00">
       </div>
     </div>
-    <div class="field">
-      <label>Pauze (minuten, onbetaald)</label>
-      <input type="number" id="workBreak" value="30" min="0" step="5">
+    <div class="row2">
+      <div class="field">
+        <label>Pauze (min, onbetaald)</label>
+        <input type="number" id="workBreak" value="30" min="0" step="5">
+      </div>
+      <div class="field">
+        <label>Loonpercentage (%)</label>
+        <input type="number" id="workPct" value="100" min="0" step="5" inputmode="numeric">
+      </div>
+    </div>
+    <div class="field" style="margin-top:-6px">
+      <label id="pctHint" style="font-size:12px">100% = normaal loon · vul bijv. 150 in voor zondagstoeslag</label>
     </div>
     <div class="modal-btns">
       <button class="btn cancel" data-close>Annuleren</button>
@@ -272,16 +285,21 @@ function workedMinutes(w) {
 }
 
 function monthStats(year, month) {
-  let mins = 0, shifts = 0;
+  let mins = 0, paidMins = 0, shifts = 0;
   for (const [key, list] of Object.entries(items)) {
     const [y, m] = key.split('-').map(Number);
     if (y === year && m === month+1) {
       for (const it of list) {
-        if (it.type === 'work') { mins += workedMinutes(it); shifts++; }
+        if (it.type === 'work') {
+          const wm = workedMinutes(it);
+          mins += wm;
+          paidMins += wm * ((it.pct || 100) / 100); // toeslag, bijv. 150% op zondag
+          shifts++;
+        }
       }
     }
   }
-  return { hours: mins/60, shifts };
+  return { hours: mins/60, paidHours: paidMins/60, shifts };
 }
 
 function euro(n) {
@@ -289,7 +307,7 @@ function euro(n) {
 }
 
 function renderSalary() {
-  const { hours, shifts } = monthStats(viewDate.getFullYear(), viewDate.getMonth());
+  const { hours, paidHours, shifts } = monthStats(viewDate.getFullYear(), viewDate.getMonth());
   const label = document.getElementById('salaryLabel');
   const amount = document.getElementById('salaryAmount');
   const sub = document.getElementById('salarySub');
@@ -303,7 +321,7 @@ function renderSalary() {
       : 'Vast maandsalaris';
   } else {
     label.textContent = 'Verdiend in ' + monthName;
-    amount.textContent = euro(hours * (settings.hourlyRate || 0));
+    amount.textContent = euro(paidHours * (settings.hourlyRate || 0));
     sub.innerHTML = '<b>' + shifts + '</b> ' + (shifts === 1 ? 'dienst' : 'diensten') + ' · <b>'
       + hours.toLocaleString('nl-NL', {maximumFractionDigits:1}) + '</b> uur · '
       + euro(settings.hourlyRate || 0) + ' per uur';
@@ -380,13 +398,15 @@ function renderDay() {
     let inner;
     if (it.type === 'work') {
       const hrs = workedMinutes(it) / 60;
+      const pct = it.pct || 100;
       const earn = settings.payType === 'hourly' && settings.hourlyRate
-        ? '<div class="earn">' + euro(hrs * settings.hourlyRate) + '</div>' : '';
+        ? '<div class="earn">' + euro(hrs * (pct/100) * settings.hourlyRate) + '</div>' : '';
       inner = '<div class="emoji">💼</div><div class="info">'
         + '<div class="title">Werkdienst</div>'
         + '<div class="meta">' + it.start + ' – ' + it.end
         + (it.break ? ' · ' + it.break + ' min pauze' : '')
-        + ' · ' + hrs.toLocaleString('nl-NL', {maximumFractionDigits:1}) + ' uur</div>'
+        + ' · ' + hrs.toLocaleString('nl-NL', {maximumFractionDigits:1}) + ' uur'
+        + (pct !== 100 ? ' · ' + pct + '% loon' : '') + '</div>'
         + '</div>' + earn;
     } else {
       inner = '<div class="emoji">📌</div><div class="info">'
@@ -396,6 +416,7 @@ function renderDay() {
     }
     div.innerHTML = inner;
     if (it.type === 'event') div.querySelector('.title').textContent = it.title;
+    if (it.type === 'work' && it.task) div.querySelector('.title').textContent = it.task;
 
     const del = document.createElement('button');
     del.className = 'del';
@@ -443,14 +464,22 @@ document.getElementById('saveEventBtn').onclick = () => {
 };
 
 // Werkdienst
-document.getElementById('addWorkBtn').onclick = () => openModal('workOverlay');
+document.getElementById('addWorkBtn').onclick = () => {
+  document.getElementById('workTask').value = '';
+  // op zondag alvast 150% invullen (zondagstoeslag), aanpasbaar
+  document.getElementById('workPct').value = selectedDate.getDay() === 0 ? 150 : 100;
+  openModal('workOverlay');
+};
 document.getElementById('saveWorkBtn').onclick = () => {
   const start = document.getElementById('workStart').value;
   const end = document.getElementById('workEnd').value;
   if (!start || !end) return;
   const key = keyOf(selectedDate);
   (items[key] = items[key] || []).push({
-    type: 'work', start, end, break: parseInt(document.getElementById('workBreak').value) || 0
+    type: 'work', start, end,
+    break: parseInt(document.getElementById('workBreak').value) || 0,
+    task: document.getElementById('workTask').value.trim() || null,
+    pct: parseFloat(document.getElementById('workPct').value) || 100
   });
   saveData(); closeModals(); render();
 };
