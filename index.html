@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1d29">
+<title>Agenda & Salaris</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #12141d;
+    --card: #1e2130;
+    --card-2: #262a3d;
+    --accent: #6c8cff;
+    --accent-2: #4ade80;
+    --work: #fbbf24;
+    --text: #eef0f8;
+    --muted: #8b91a7;
+    --danger: #f87171;
+    --radius: 16px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 4px 16px;
+  }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header h1 span { color: var(--accent); }
+  .icon-btn {
+    background: var(--card); border: none; color: var(--text);
+    width: 40px; height: 40px; border-radius: 12px; font-size: 18px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ---------- Salaris-overzicht ---------- */
+  .salary-card {
+    background: linear-gradient(135deg, #2b3050, #1e2130);
+    border: 1px solid #333a55;
+    border-radius: var(--radius);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .salary-card .label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .salary-card .amount { font-size: 32px; font-weight: 800; color: var(--accent-2); }
+  .salary-card .sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .salary-card .sub b { color: var(--text); font-weight: 600; }
+
+  /* ---------- Kalender ---------- */
+  .cal-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav h2 { font-size: 17px; font-weight: 700; text-transform: capitalize; }
+  .cal-nav button {
+    background: var(--card-2); border: none; color: var(--text);
+    width: 34px; height: 34px; border-radius: 10px; font-size: 16px; cursor: pointer;
+  }
+  .weekdays, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .weekdays div { text-align: center; font-size: 11px; color: var(--muted); padding: 4px 0; font-weight: 600; }
+  .day {
+    aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 10px; font-size: 14px; cursor: pointer; border: none;
+    background: transparent; color: var(--text); position: relative;
+  }
+  .day:not(.empty):hover { background: var(--card-2); }
+  .day.other { color: #4a4f66; }
+  .day.today { border: 1.5px solid var(--accent); font-weight: 700; }
+  .day.selected { background: var(--accent); color: #fff; font-weight: 700; }
+  .dots { display: flex; gap: 3px; height: 5px; margin-top: 3px; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .dot.event { background: var(--accent); }
+  .dot.work { background: var(--work); }
+  .day.selected .dot.event { background: #fff; }
+  .day.selected .dot.work { background: #fff; }
+
+  /* ---------- Daglijst ---------- */
+  .day-panel { background: var(--card); border-radius: var(--radius); padding: 16px; }
+  .day-panel h3 { font-size: 15px; margin-bottom: 12px; }
+  .empty-msg { color: var(--muted); font-size: 14px; text-align: center; padding: 12px 0; }
+  .item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card-2); border-radius: 12px; padding: 12px; margin-bottom: 8px;
+  }
+  .item .emoji { font-size: 20px; }
+  .item .info { flex: 1; min-width: 0; }
+  .item .title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .item .earn { font-size: 13px; font-weight: 700; color: var(--accent-2); white-space: nowrap; }
+  .item .del {
+    background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px;
+  }
+  .add-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .add-btn {
+    border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .add-btn.event { background: var(--accent); color: #fff; }
+  .add-btn.work { background: var(--work); color: #1a1d29; }
+
+  /* ---------- Modal ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: flex-end; justify-content: center; z-index: 10;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--card); width: 100%; max-width: 480px;
+    border-radius: 20px 20px 0 0; padding: 20px 20px 32px;
+  }
+  .modal h3 { font-size: 17px; margin-bottom: 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; background: var(--card-2); border: 1px solid #333a55; border-radius: 10px;
+    padding: 12px; color: var(--text); font-size: 16px; outline: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .btn {
+    border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .btn.cancel { background: var(--card-2); color: var(--text); }
+  .btn.save { background: var(--accent); color: #fff; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📅 Agenda <span>&amp; Salaris</span></h1>
+    <button class="icon-btn" id="settingsBtn" title="Instellingen">⚙️</button>
+  </header>
+
+  <!-- Salarisoverzicht van de getoonde maand -->
+  <div class="salary-card">
+    <div class="label" id="salaryLabel">Verdiend deze maand</div>
+    <div class="amount" id="salaryAmount">€ 0,00</div>
+    <div class="sub" id="salarySub"></div>
+  </div>
+
+  <!-- Kalender -->
+  <div class="cal-card">
+    <div class="cal-nav">
+      <button id="prevBtn">‹</button>
+      <h2 id="monthTitle"></h2>
+      <button id="nextBtn">›</button>
+    </div>
+    <div class="weekdays">
+      <div>Ma</div><div>Di</div><div>Wo</div><div>Do</div><div>Vr</div><div>Za</div><div>Zo</div>
+    </div>
+    <div class="days" id="daysGrid"></div>
+  </div>
+
+  <!-- Geselecteerde dag -->
+  <div class="day-panel">
+    <h3 id="dayTitle"></h3>
+    <div id="dayItems"></div>
+    <div class="add-row">
+      <button class="add-btn event" id="addEventBtn">+ Afspraak</button>
+      <button class="add-btn work" id="addWorkBtn">+ Werkdienst</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: afspraak -->
+<div class="overlay" id="eventOverlay">
+  <div class="modal">
+    <h3>📌 Nieuwe afspraak</h3>
+    <div class="field">
+      <label>Wat ga je doen?</label>
+      <input type="text" id="eventTitle" placeholder="bijv. Tandarts, voetbal, verjaardag">
+    </div>
+    <div class="field">
+      <label>Tijd (optioneel)</label>
+      <input type="time" id="eventTime">
+    </div>
+    <div class="modal-btns">
+      <button class="btn cancel" data-close>Annuleren</button>
+      <button class="btn save" id="saveEventBtn">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: werkdienst -->
+<div class="overlay" id="workOverlay">
+  <div class="modal">
+    <h3>💼 Nieuwe werkdienst</h3>
+    <div class="row2">
+      <div class="field">
+        <label>Begintijd</label>
+        <input type="time" id="workStart" value="09:00">
+      </div>
+      <div class="field">
+        <label>Eindtijd</label>
+        <input type="time" id="workEnd" value="17:00">
+      </div>
+    </div>
+    <div class="field">
+      <label>Pauze (minuten, onbetaald)</label>
+      <input type="number" id="workBreak" value="30" min="0" step="5">
+    </div>
+    <div class="modal-btns">
+      <button class="btn cancel" data-close>Annuleren</button>
+      <button class="btn save" id="saveWorkBtn">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: instellingen -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h3>⚙️ Instellingen</h3>
+    <div class="field">
+      <label>Hoe word je betaald?</label>
+      <select id="setPayType">
+        <option value="hourly">Per uur (uurloon)</option>
+        <option value="monthly">Vast bedrag per maand</option>
+      </select>
+    </div>
+    <div class="field" id="hourlyField">
+      <label>Uurloon (€ per uur)</label>
+      <input type="number" id="setHourlyRate" placeholder="bijv. 14.50" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="field hidden" id="monthlyField">
+      <label>Maandsalaris (€ per maand)</label>
+      <input type="number" id="setMonthlySalary" placeholder="bijv. 2100" min="0" step="1" inputmode="decimal">
+    </div>
+    <div class="modal-btns">
+      <button class="btn cancel" data-close>Annuleren</button>
+      <button class="btn save" id="saveSettingsBtn">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Data ----------
+// items: { "2026-07-06": [ {type:'event', title, time}, {type:'work', start, end, break} ] }
+let items = JSON.parse(localStorage.getItem('agendaItems') || '{}');
+let settings = JSON.parse(localStorage.getItem('agendaSettings') || '{"payType":"hourly","hourlyRate":0,"monthlySalary":0}');
+
+function saveData() {
+  localStorage.setItem('agendaItems', JSON.stringify(items));
+  localStorage.setItem('agendaSettings', JSON.stringify(settings));
+}
+
+// ---------- Datum-hulpjes ----------
+const MONTHS = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+const DAYS = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+
+function keyOf(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+let viewDate = new Date();   // welke maand we bekijken
+let selectedDate = new Date(); // welke dag is aangeklikt
+
+// ---------- Salaris berekenen ----------
+function workedMinutes(w) {
+  const [sh, sm] = w.start.split(':').map(Number);
+  const [eh, em] = w.end.split(':').map(Number);
+  let mins = (eh*60+em) - (sh*60+sm);
+  if (mins < 0) mins += 24*60; // nachtdienst over middernacht
+  mins -= (w.break || 0);
+  return Math.max(mins, 0);
+}
+
+function monthStats(year, month) {
+  let mins = 0, shifts = 0;
+  for (const [key, list] of Object.entries(items)) {
+    const [y, m] = key.split('-').map(Number);
+    if (y === year && m === month+1) {
+      for (const it of list) {
+        if (it.type === 'work') { mins += workedMinutes(it); shifts++; }
+      }
+    }
+  }
+  return { hours: mins/60, shifts };
+}
+
+function euro(n) {
+  return '€ ' + n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderSalary() {
+  const { hours, shifts } = monthStats(viewDate.getFullYear(), viewDate.getMonth());
+  const label = document.getElementById('salaryLabel');
+  const amount = document.getElementById('salaryAmount');
+  const sub = document.getElementById('salarySub');
+  const monthName = MONTHS[viewDate.getMonth()];
+
+  if (settings.payType === 'monthly') {
+    label.textContent = 'Salaris in ' + monthName;
+    amount.textContent = euro(settings.monthlySalary || 0);
+    sub.innerHTML = shifts > 0
+      ? 'Vast maandsalaris · <b>' + shifts + '</b> ' + (shifts === 1 ? 'dienst' : 'diensten') + ' · <b>' + hours.toLocaleString('nl-NL', {maximumFractionDigits:1}) + '</b> uur gewerkt'
+      : 'Vast maandsalaris';
+  } else {
+    label.textContent = 'Verdiend in ' + monthName;
+    amount.textContent = euro(hours * (settings.hourlyRate || 0));
+    sub.innerHTML = '<b>' + shifts + '</b> ' + (shifts === 1 ? 'dienst' : 'diensten') + ' · <b>'
+      + hours.toLocaleString('nl-NL', {maximumFractionDigits:1}) + '</b> uur · '
+      + euro(settings.hourlyRate || 0) + ' per uur';
+    if (!settings.hourlyRate) {
+      sub.innerHTML = 'Tip: stel je uurloon in via ⚙️ rechtsboven';
+    }
+  }
+}
+
+// ---------- Kalender ----------
+function renderCalendar() {
+  const y = viewDate.getFullYear(), m = viewDate.getMonth();
+  document.getElementById('monthTitle').textContent = MONTHS[m] + ' ' + y;
+
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+
+  const first = new Date(y, m, 1);
+  let startOffset = (first.getDay() + 6) % 7; // maandag = 0
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const todayKey = keyOf(new Date());
+  const selKey = keyOf(selectedDate);
+
+  for (let i = 0; i < startOffset; i++) {
+    const d = document.createElement('div');
+    d.className = 'day empty';
+    grid.appendChild(d);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(y, m, day);
+    const key = keyOf(date);
+    const btn = document.createElement('button');
+    btn.className = 'day';
+    if (key === todayKey) btn.classList.add('today');
+    if (key === selKey) btn.classList.add('selected');
+    btn.innerHTML = '<span>' + day + '</span>';
+
+    const list = items[key] || [];
+    const dots = document.createElement('div');
+    dots.className = 'dots';
+    if (list.some(it => it.type === 'event')) dots.innerHTML += '<div class="dot event"></div>';
+    if (list.some(it => it.type === 'work')) dots.innerHTML += '<div class="dot work"></div>';
+    btn.appendChild(dots);
+
+    btn.onclick = () => { selectedDate = date; render(); };
+    grid.appendChild(btn);
+  }
+}
+
+// ---------- Daglijst ----------
+function renderDay() {
+  const key = keyOf(selectedDate);
+  const dayName = DAYS[selectedDate.getDay()];
+  document.getElementById('dayTitle').textContent =
+    dayName.charAt(0).toUpperCase() + dayName.slice(1) + ' ' + selectedDate.getDate() + ' ' + MONTHS[selectedDate.getMonth()];
+
+  const box = document.getElementById('dayItems');
+  box.innerHTML = '';
+  const list = (items[key] || []).slice().sort((a, b) => {
+    const ta = a.type === 'work' ? a.start : (a.time || '99:99');
+    const tb = b.type === 'work' ? b.start : (b.time || '99:99');
+    return ta.localeCompare(tb);
+  });
+
+  if (list.length === 0) {
+    box.innerHTML = '<div class="empty-msg">Nog niks gepland op deze dag</div>';
+    return;
+  }
+
+  for (const it of list) {
+    const div = document.createElement('div');
+    div.className = 'item';
+    let inner;
+    if (it.type === 'work') {
+      const hrs = workedMinutes(it) / 60;
+      const earn = settings.payType === 'hourly' && settings.hourlyRate
+        ? '<div class="earn">' + euro(hrs * settings.hourlyRate) + '</div>' : '';
+      inner = '<div class="emoji">💼</div><div class="info">'
+        + '<div class="title">Werkdienst</div>'
+        + '<div class="meta">' + it.start + ' – ' + it.end
+        + (it.break ? ' · ' + it.break + ' min pauze' : '')
+        + ' · ' + hrs.toLocaleString('nl-NL', {maximumFractionDigits:1}) + ' uur</div>'
+        + '</div>' + earn;
+    } else {
+      inner = '<div class="emoji">📌</div><div class="info">'
+        + '<div class="title"></div>'
+        + '<div class="meta">' + (it.time || 'Hele dag') + '</div>'
+        + '</div>';
+    }
+    div.innerHTML = inner;
+    if (it.type === 'event') div.querySelector('.title').textContent = it.title;
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '🗑️';
+    del.onclick = () => {
+      const idx = items[key].indexOf(it);
+      items[key].splice(idx, 1);
+      if (items[key].length === 0) delete items[key];
+      saveData(); render();
+    };
+    div.appendChild(del);
+    box.appendChild(div);
+  }
+}
+
+function render() {
+  renderSalary();
+  renderCalendar();
+  renderDay();
+}
+
+// ---------- Modals ----------
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModals() { document.querySelectorAll('.overlay').forEach(o => o.classList.remove('open')); }
+
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeModals);
+document.querySelectorAll('.overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) closeModals(); });
+});
+
+// Afspraak
+document.getElementById('addEventBtn').onclick = () => {
+  document.getElementById('eventTitle').value = '';
+  document.getElementById('eventTime').value = '';
+  openModal('eventOverlay');
+};
+document.getElementById('saveEventBtn').onclick = () => {
+  const title = document.getElementById('eventTitle').value.trim();
+  if (!title) { document.getElementById('eventTitle').focus(); return; }
+  const key = keyOf(selectedDate);
+  (items[key] = items[key] || []).push({
+    type: 'event', title, time: document.getElementById('eventTime').value || null
+  });
+  saveData(); closeModals(); render();
+};
+
+// Werkdienst
+document.getElementById('addWorkBtn').onclick = () => openModal('workOverlay');
+document.getElementById('saveWorkBtn').onclick = () => {
+  const start = document.getElementById('workStart').value;
+  const end = document.getElementById('workEnd').value;
+  if (!start || !end) return;
+  const key = keyOf(selectedDate);
+  (items[key] = items[key] || []).push({
+    type: 'work', start, end, break: parseInt(document.getElementById('workBreak').value) || 0
+  });
+  saveData(); closeModals(); render();
+};
+
+// Instellingen
+document.getElementById('settingsBtn').onclick = () => {
+  document.getElementById('setPayType').value = settings.payType;
+  document.getElementById('setHourlyRate').value = settings.hourlyRate || '';
+  document.getElementById('setMonthlySalary').value = settings.monthlySalary || '';
+  toggleSalaryFields();
+  openModal('settingsOverlay');
+};
+document.getElementById('setPayType').onchange = toggleSalaryFields;
+function toggleSalaryFields() {
+  const hourly = document.getElementById('setPayType').value === 'hourly';
+  document.getElementById('hourlyField').classList.toggle('hidden', !hourly);
+  document.getElementById('monthlyField').classList.toggle('hidden', hourly);
+}
+document.getElementById('saveSettingsBtn').onclick = () => {
+  settings.payType = document.getElementById('setPayType').value;
+  settings.hourlyRate = parseFloat(document.getElementById('setHourlyRate').value) || 0;
+  settings.monthlySalary = parseFloat(document.getElementById('setMonthlySalary').value) || 0;
+  saveData(); closeModals(); render();
+};
+
+// Maand-navigatie
+document.getElementById('prevBtn').onclick = () => {
+  viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1); render();
+};
+document.getElementById('nextBtn').onclick = () => {
+  viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1); render();
+};
+
+render();
+</script>
+</body>
+</html>
